@@ -8,6 +8,8 @@ const date = require(__dirname + "/date.js");
 
 const mongoose = require("mongoose");
 
+const _ = require('lodash');
+
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(express.static('public')); 
 
@@ -87,17 +89,15 @@ app.get("/:customList", async (req, res) => {
 
     try
     {
-        const custom = req.params.customList;
+        const custom = _.capitalize(req.params.customList);
 
         const findCustomList = await List.findOne({name: custom});
 
         const today = date.getDate();
-
-        const customTitle = custom.charAt(0).toUpperCase() + custom.slice(1).toLowerCase();
     
         if(findCustomList != null) {
             res.render("list", {
-                listTitle   : customTitle,
+                listTitle   : custom,
                 items: findCustomList.items
             })
         }
@@ -128,11 +128,11 @@ app.post("/", async (req, res) => {
     }
     else{
         try{
-            const findList = await List.findOne({name: listName.toLowerCase()});
+            const findList = await List.findOne({name: listName});
 
             findList.items.push({name: itemName});
 
-            await findList.save().then(res.redirect("/" + listName.toLowerCase()));
+            await findList.save().then(res.redirect("/" + listName));
         }
         catch(err){
             console.log(err.message);
@@ -145,16 +145,35 @@ app.post("/", async (req, res) => {
 });
 
 app.post('/delete', async (req, res) => {
-    const itemId = req.body.checkbox;
+    
 
     try {
-        await Item.deleteOne({_id: itemId});
+
+        const itemId = req.body.checkbox;
+
+        const listName = req.body.listName;
+
+        if(listName === date.getDate()) {
+            await Item.deleteOne({_id: itemId});
+            res.redirect('/');
+        }
+        else{
+            await List.updateOne({name: listName}, {
+                $pull:{
+                    items: {_id: itemId}
+                }
+            });
+            
+            res.redirect('/' + listName);
+        }
+
+        
     }
     catch (err) {
         console.log(err.message);
     }
 
-    res.redirect('/');
+    
 });
 
 app.listen(3000, () => {
