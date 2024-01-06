@@ -6,37 +6,157 @@ const app = express();
 
 const date = require(__dirname + "/date.js");
 
+const mongoose = require("mongoose");
+
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(express.static('public')); 
 
+mongoose.connect("mongodb://127.0.0.1:27017/todolistDB");
+
+const Item = require(__dirname + '/Item.js');
+
+const List = Item.list;
+
+const defaultItems = [
+    {
+        name: "Welcome to your todolist!"
+    },
+    {
+        name: "Hit the + button to add a new item"
+    },
+    {
+        name: "<-- Hit this to delete an item"
+    }
+];
+
+async function getItems(){
+    let items;
+
+    try{
+        items = await Item.find();
+    }
+    catch(err){
+        console.log(err.message);
+    }
+
+    return items;
+}
+
+async function run(){
+    try{
+
+        // await Item.insertMany(defaultItems);
+
+    
+    }
+    catch(err){
+        console.log(err.message);
+    }
+}
+
+
 app.set("view engine", "ejs");
-
-let items = ["Buy food", "Cook food", "Eat food"];
-
-app.get("/", (req, res) => {
+    
+app.get("/", async (req, res) => {
     const today = date.getDate();
 
-    res.render("list", {
-        today: today,
-        items: items
-    });
+    const items = await getItems();
+
+    if(items.length === 0){
+        try{
+            await Item.insertMany(defaultItems);
+        }
+        catch(err){
+            console.log(err.message);
+        }
+
+        res.redirect('/');
+    }
+    else
+    {
+        res.render("list", {
+            listTitle: today,
+            items: items
+        });
+    }
+
+    
+});
+
+app.get("/:customList", async (req, res) => {
+
+    try
+    {
+        const custom = req.params.customList;
+
+        const findCustomList = await List.findOne({name: custom});
+
+        const today = date.getDate();
+
+        const customTitle = custom.charAt(0).toUpperCase() + custom.slice(1).toLowerCase();
+    
+        if(findCustomList != null) {
+            res.render("list", {
+                listTitle   : customTitle,
+                items: findCustomList.items
+            })
+        }
+        else{
+            await List.create({
+                name: custom,
+                items: defaultItems
+            }).then(() => {
+                res.redirect('/' + custom);
+            });
+        }
+    }
+    catch(err){
+        console.log(err.message);
+    }
 })
 
-app.post("/", (req, res) => {
+app.post("/", async (req, res) => {
 
-    if(req.body.reset === "pressed"){
-        items = [];
+    const itemName = req.body.newItem;
+
+    const listName = req.body.list;
+
+    if(listName === date.getDate()){
+        await Item.create({name: itemName});
+
+        res.redirect('/');
     }
     else{
-        let item = req.body.newItem;
+        try{
+            const findList = await List.findOne({name: listName.toLowerCase()});
 
-        items.push(item);
+            findList.items.push({name: itemName});
+
+            await findList.save().then(res.redirect("/" + listName.toLowerCase()));
+        }
+        catch(err){
+            console.log(err.message);
+        }
     }
 
-    res.redirect("/");
     
-})
+    
+    
+});
+
+app.post('/delete', async (req, res) => {
+    const itemId = req.body.checkbox;
+
+    try {
+        await Item.deleteOne({_id: itemId});
+    }
+    catch (err) {
+        console.log(err.message);
+    }
+
+    res.redirect('/');
+});
 
 app.listen(3000, () => {
     console.log("Server running on port 3000.");
-})
+});
