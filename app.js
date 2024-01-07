@@ -13,7 +13,7 @@ const _ = require('lodash');
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(express.static('public')); 
 
-mongoose.connect("mongodb://127.0.0.1:27017/todolistDB");
+mongoose.connect("mongodb+srv://admin:saliste69@cluster0.vyaefh3.mongodb.net/todolistDB");
 
 const Item = require(__dirname + '/Item.js');
 
@@ -97,7 +97,7 @@ app.get("/:customList", async (req, res) => {
     
         if(findCustomList != null) {
             res.render("list", {
-                listTitle   : custom,
+                listTitle: custom,
                 items: findCustomList.items
             })
         }
@@ -176,6 +176,11 @@ app.post('/delete', async (req, res) => {
     
 });
 
-app.listen(3000, () => {
+let port = process.env.PORT;
+if (port == null || port == "") {
+  port = 3000;
+}
+
+app.listen(port, () => {
     console.log("Server running on port 3000.");
 });
